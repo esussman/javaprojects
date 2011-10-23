@@ -1,18 +1,26 @@
 import java.awt.BorderLayout;
 import java.awt.EventQueue;
 import java.io.*;
+
+import javax.mail.*;
+import javax.mail.internet.MimeMessage;
 import javax.net.ssl.SSLSocket;
 import javax.net.ssl.SSLSocketFactory;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
+import javax.swing.DefaultListModel;
 import javax.swing.GroupLayout;
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
+
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.JButton;
+import javax.swing.ListModel;
+import javax.swing.ListSelectionModel;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.io.FileNotFoundException;
@@ -20,8 +28,12 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Properties;
 
 import javax.swing.JComboBox;
+import javax.swing.JScrollPane;
+import javax.swing.JList;
 
 
 public class IMAP extends JFrame {
@@ -34,6 +46,10 @@ public class IMAP extends JFrame {
 	private JLabel lblWrite;
 	private JButton btnClose;
 	private ArrayList<Credentials> userLogs;
+	private JList listShowEmails;
+	private DefaultListModel  emailContents;
+	public PrintWriter out = null;
+	public BufferedReader in = null;
 	/**
 	 * Launch the application.
 	 */
@@ -49,14 +65,14 @@ public class IMAP extends JFrame {
 			}
 		});
 	}
-
 	/**
 	 * Create the frame.
 	 */
 	public IMAP() {
+		
 		userLogs = new ArrayList<Credentials>();
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 450, 300);
+		setBounds(100, 100, 626, 437);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
@@ -85,67 +101,74 @@ public class IMAP extends JFrame {
 		btnConnect.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) 
 			{
-				int port = -1;
-				Credentials c = new Credentials();
-				
-				String username = txtUserName.getText();
-				String password = txtPassword.getText();
-				String hostname = txtHostAddress.getText();
-			
-				
-				try
+				Thread split = new Thread()
 				{
-					port = Integer.parseInt(txtPortNumber.getText());
-				}
-				catch(NumberFormatException e)
-				{
-					JOptionPane.showMessageDialog(null, "Port must be a number.");
-				}
-				if(username.isEmpty() || password.isEmpty() || hostname.isEmpty())
-					JOptionPane.showMessageDialog(null, "A field was left blank. Please enter in all fields.");
-				else if(port < 0)
-					JOptionPane.showMessageDialog(null, "Please enter a port.");
-				else
-				{
-					c.setHostname(hostname);
-					c.setPassword(password);
-					c.setUsername(username);
-					c.setPort(port);
-					userLogs.add(c);
-					SSLSocketFactory sslsocketfactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
-					SSLSocket sslsocket;
-			        try {
-						sslsocket = (SSLSocket) sslsocketfactory.createSocket(hostname, port);
-						
-				        InputStream inputstream = sslsocket.getInputStream();
-			            InputStreamReader inputstreamreader = new InputStreamReader(inputstream);
-			            BufferedReader bufferedreader = new BufferedReader(inputstreamreader);
-						
-			            
-			            String login = ". login " + username + " " + password + "\n";
-						OutputStream outputstream = sslsocket.getOutputStream();
-						outputstream.write(login.getBytes());
-			            OutputStreamWriter outputstreamwriter = new OutputStreamWriter(outputstream);
-			            BufferedWriter bufferedwriter = new BufferedWriter(outputstreamwriter);
-			            bufferedwriter.write(login);
-			     
-			            char[] f = new char[1024];
-			            bufferedreader.read(f);
-			            String message;
-			            message = String.valueOf(f);
-			        	JOptionPane.showMessageDialog(null,message);
-			            sslsocket.close();
-			            
-					} catch (UnknownHostException e) 
+					public void run()
 					{
-						e.printStackTrace();
-					} catch (IOException e) {
+						int port = -1;
+						
+						String username = txtUserName.getText();
+						String password = txtPassword.getText();
+						String hostname = txtHostAddress.getText();
 					
-						e.printStackTrace();
-					}
+						
+						try
+						{
+							port = Integer.parseInt(txtPortNumber.getText());
+						}
+						catch(NumberFormatException e)
+						{
+							JOptionPane.showMessageDialog(null, "Port must be a number.");
+						}
+						if(username.isEmpty() || password.isEmpty() || hostname.isEmpty())
+							JOptionPane.showMessageDialog(null, "A field was left blank. Please enter in all fields.");
+						else if(port < 0)
+							JOptionPane.showMessageDialog(null, "Please enter a port.");
+						else
+						{
+						
+							String response = "";
+							Credentials c = new Credentials();
+							c.setHostname(hostname);
+							c.setPassword(password);
+							c.setUsername(username);
+							c.setPort(port);
+							userLogs.add(c);
+							
+							Properties props = System.getProperties();
+							props.setProperty("mail.store.protocol", "imaps");
+								try {
+									Session session = Session.getDefaultInstance(props, null);
+									Store store = session.getStore("imaps");
+									store.connect(hostname, username, password);
 
-				}
+									Folder inbox = store.getFolder("Inbox");
+									inbox.open(Folder.READ_ONLY);
+									Message messages[] = inbox.getMessages();
+									for(Message message:messages)
+									{
+										System.out.println(message.getMessageNumber());
+										System.out.println(message.getSubject());
+									}
+									inbox.close(false);
+									store.close();
+							} catch (NoSuchProviderException e) {
+								e.printStackTrace();
+								System.exit(1);
+							} catch (MessagingException e) {
+								e.printStackTrace();
+								System.exit(2);
+							}
+							
+							
+						}
+					}
+				};
+				split.start();
+					
+				
 			}
+
 		});
 		
 		lblWrite = new JLabel("");
@@ -243,66 +266,90 @@ public class IMAP extends JFrame {
 				e.printStackTrace();
 			}
 		}
+		
+		JScrollPane scrollPane = new JScrollPane();
+		emailContents = new DefaultListModel();
+		listShowEmails = new JList(emailContents);
+		scrollPane.setViewportView(listShowEmails);
+		listShowEmails.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
-					.addGap(19)
+					.addGap(6)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 						.addGroup(gl_contentPane.createSequentialGroup()
-							.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 357, GroupLayout.PREFERRED_SIZE)
-							.addContainerGap())
+							.addComponent(cbCredentials, GroupLayout.PREFERRED_SIZE, 114, GroupLayout.PREFERRED_SIZE)
+							.addPreferredGap(ComponentPlacement.UNRELATED)
+							.addComponent(btnConnect)
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addComponent(btnClose, GroupLayout.PREFERRED_SIZE, 102, GroupLayout.PREFERRED_SIZE))
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 								.addGroup(gl_contentPane.createSequentialGroup()
-									.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-										.addComponent(lblPortNumber)
-										.addComponent(lblHostAddress)
-										.addComponent(lblUsername)
-										.addComponent(lblPassword, GroupLayout.DEFAULT_SIZE, 91, Short.MAX_VALUE))
-									.addPreferredGap(ComponentPlacement.RELATED))
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addComponent(btnConnect)
-									.addGap(1)))
-							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
-								.addComponent(btnClose)
-								.addComponent(txtPassword, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-								.addComponent(txtUserName, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-								.addComponent(txtPortNumber, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-								.addGroup(gl_contentPane.createSequentialGroup()
-									.addComponent(txtHostAddress, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 									.addPreferredGap(ComponentPlacement.RELATED)
-									.addComponent(cbCredentials, GroupLayout.PREFERRED_SIZE, 114, GroupLayout.PREFERRED_SIZE)))
-							.addContainerGap(70, Short.MAX_VALUE))))
+									.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 588, GroupLayout.PREFERRED_SIZE))
+								.addGroup(gl_contentPane.createSequentialGroup()
+									.addComponent(lblPortNumber)
+									.addGap(12)
+									.addComponent(txtPortNumber, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+									.addGap(6)
+									.addComponent(lblPassword, GroupLayout.PREFERRED_SIZE, 64, GroupLayout.PREFERRED_SIZE)
+									.addGap(6)
+									.addComponent(txtPassword, GroupLayout.PREFERRED_SIZE, 225, GroupLayout.PREFERRED_SIZE))
+								.addGroup(gl_contentPane.createSequentialGroup()
+									.addComponent(lblHostAddress)
+									.addGap(6)
+									.addComponent(txtHostAddress, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+									.addGap(6)
+									.addComponent(lblUsername)
+									.addGap(6)
+									.addComponent(txtUserName, GroupLayout.PREFERRED_SIZE, 225, GroupLayout.PREFERRED_SIZE)))
+							.addPreferredGap(ComponentPlacement.RELATED)
+							.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 357, GroupLayout.PREFERRED_SIZE))))
 		);
 		gl_contentPane.setVerticalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
 				.addGroup(gl_contentPane.createSequentialGroup()
 					.addGap(18)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
-						.addComponent(lblHostAddress)
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(6)
+							.addComponent(lblHostAddress))
 						.addComponent(txtHostAddress, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
-						.addComponent(cbCredentials, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-					.addPreferredGap(ComponentPlacement.UNRELATED)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
-						.addComponent(lblPortNumber)
-						.addComponent(txtPortNumber, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-					.addPreferredGap(ComponentPlacement.UNRELATED)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
-						.addComponent(lblUsername)
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(6)
+							.addComponent(lblUsername))
 						.addComponent(txtUserName, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-					.addPreferredGap(ComponentPlacement.RELATED)
+					.addGap(6)
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(13)
+							.addComponent(lblPortNumber))
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(7)
+							.addComponent(txtPortNumber, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(13)
+							.addComponent(lblPassword))
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(7)
+							.addComponent(txtPassword, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)))
+					.addGap(6)
 					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
-						.addComponent(lblPassword)
-						.addComponent(txtPassword, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE))
-					.addPreferredGap(ComponentPlacement.RELATED)
-					.addGroup(gl_contentPane.createParallelGroup(Alignment.BASELINE)
+						.addComponent(cbCredentials, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
 						.addComponent(btnConnect)
 						.addComponent(btnClose))
-					.addPreferredGap(ComponentPlacement.UNRELATED)
-					.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE)
-					.addContainerGap(17, Short.MAX_VALUE))
+					.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(115)
+							.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE))
+						.addGroup(gl_contentPane.createSequentialGroup()
+							.addGap(59)
+							.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 218, GroupLayout.PREFERRED_SIZE)))
+					.addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
 		);
 		contentPane.setLayout(gl_contentPane);
+		
 	}
 }
