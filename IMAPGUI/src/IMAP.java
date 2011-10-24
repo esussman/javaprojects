@@ -52,6 +52,7 @@ public class IMAP extends JFrame {
 	private JList listShowEmails;
 	private DefaultListModel  emailContents;
 	public PrintWriter out = null;
+	String bodys[];
 	public BufferedReader in = null;
 	/**
 	 * Launch the application.
@@ -145,11 +146,16 @@ public class IMAP extends JFrame {
 									Folder inbox = store.getFolder("Inbox");
 									inbox.open(Folder.READ_ONLY);
 									Message messages[] = inbox.getMessages();
+									bodys = new String[messages.length];
+									int i = 0;
 									for(Message message:messages)
 									{
-										
 										String emailDisplay = message.getReceivedDate() + " , " + message.getFrom()[0] + " , " + message.getSubject();
 										emailContents.addElement(emailDisplay);
+						
+										String body = getBody(message);
+										bodys[i] = body;
+										i++;
 									}
 									inbox.close(false);
 									store.close();
@@ -159,10 +165,37 @@ public class IMAP extends JFrame {
 							} catch (MessagingException e) {
 								e.printStackTrace();
 								System.exit(2);
+							} catch (IOException e) {
+								// TODO Auto-generated catch block
+								e.printStackTrace();
 							}
 							
 							
 						}
+					}
+
+					private String getBody(Message message) throws IOException, MessagingException 
+					{
+						Object content = message.getContent();
+						if (content instanceof Multipart)
+						{
+						    StringBuffer messageContent = new StringBuffer();
+						    Multipart multipart = (Multipart) content;
+						    for (int i = 0; i < multipart.getCount(); i++) 
+						    {
+						        Part part = (Part) multipart.getBodyPart(i);
+						        if (part.isMimeType("text/plain")) 
+						        {
+						            messageContent.append(part.getContent().toString());
+						        }
+						    }
+						   return  messageContent.toString();
+						} 
+						else 
+						{
+						    return content.toString();
+						}
+					
 					}
 				};
 				split.start();
@@ -258,7 +291,8 @@ public class IMAP extends JFrame {
 				  System.err.println("Error: " + e.getMessage());
 			}
 			
-		} else
+		} 
+		else
 		{
 			try {
 				loginfile.createNewFile();
@@ -282,7 +316,7 @@ public class IMAP extends JFrame {
 		          if (index >= 0) {
 		            Object o = theList.getModel().getElementAt(index);
 		            System.out.println("Double-clicked on: " + o.toString());
-		            JOptionPane.showMessageDialog(null, "Double-clicked on: " + o.toString());		
+		            JOptionPane.showMessageDialog(null, bodys[theList.getSelectedIndex()]);		
 		            
 		            
 		          }
