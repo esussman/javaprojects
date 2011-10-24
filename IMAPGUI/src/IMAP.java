@@ -23,6 +23,9 @@ import javax.swing.ListSelectionModel;
 
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -72,13 +75,12 @@ public class IMAP extends JFrame {
 		
 		userLogs = new ArrayList<Credentials>();
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 626, 437);
+		setBounds(100, 100, 835, 437);
 		contentPane = new JPanel();
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
 		setContentPane(contentPane);
 		
 		JLabel lblHostAddress = new JLabel("Host Address");
-		
 		txtHostAddress = new JTextField();
 		txtHostAddress.setColumns(10);
 		
@@ -126,8 +128,6 @@ public class IMAP extends JFrame {
 							JOptionPane.showMessageDialog(null, "Please enter a port.");
 						else
 						{
-						
-							String response = "";
 							Credentials c = new Credentials();
 							c.setHostname(hostname);
 							c.setPassword(password);
@@ -147,8 +147,9 @@ public class IMAP extends JFrame {
 									Message messages[] = inbox.getMessages();
 									for(Message message:messages)
 									{
-										System.out.println(message.getMessageNumber());
-										System.out.println(message.getSubject());
+										
+										String emailDisplay = message.getReceivedDate() + " , " + message.getFrom()[0] + " , " + message.getSubject();
+										emailContents.addElement(emailDisplay);
 									}
 									inbox.close(false);
 									store.close();
@@ -272,6 +273,26 @@ public class IMAP extends JFrame {
 		listShowEmails = new JList(emailContents);
 		scrollPane.setViewportView(listShowEmails);
 		listShowEmails.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+		
+		  MouseListener mouseListener = new MouseAdapter() {
+		      public void mouseClicked(MouseEvent mouseEvent) {
+		        JList theList = (JList) mouseEvent.getSource();
+		        if (mouseEvent.getClickCount() == 2) {
+		          int index = theList.locationToIndex(mouseEvent.getPoint());
+		          if (index >= 0) {
+		            Object o = theList.getModel().getElementAt(index);
+		            System.out.println("Double-clicked on: " + o.toString());
+		            JOptionPane.showMessageDialog(null, "Double-clicked on: " + o.toString());		
+		            
+		            
+		          }
+		        }
+		      }
+		    };
+		    listShowEmails.addMouseListener(mouseListener);
+		
+		
+		
 		GroupLayout gl_contentPane = new GroupLayout(contentPane);
 		gl_contentPane.setHorizontalGroup(
 			gl_contentPane.createParallelGroup(Alignment.LEADING)
@@ -287,9 +308,6 @@ public class IMAP extends JFrame {
 						.addGroup(gl_contentPane.createSequentialGroup()
 							.addGroup(gl_contentPane.createParallelGroup(Alignment.LEADING)
 								.addGroup(gl_contentPane.createSequentialGroup()
-									.addPreferredGap(ComponentPlacement.RELATED)
-									.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 588, GroupLayout.PREFERRED_SIZE))
-								.addGroup(gl_contentPane.createSequentialGroup()
 									.addComponent(lblPortNumber)
 									.addGap(12)
 									.addComponent(txtPortNumber, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
@@ -304,7 +322,10 @@ public class IMAP extends JFrame {
 									.addGap(6)
 									.addComponent(lblUsername)
 									.addGap(6)
-									.addComponent(txtUserName, GroupLayout.PREFERRED_SIZE, 225, GroupLayout.PREFERRED_SIZE)))
+									.addComponent(txtUserName, GroupLayout.PREFERRED_SIZE, 225, GroupLayout.PREFERRED_SIZE))
+								.addGroup(gl_contentPane.createSequentialGroup()
+									.addPreferredGap(ComponentPlacement.RELATED)
+									.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 808, GroupLayout.PREFERRED_SIZE)))
 							.addPreferredGap(ComponentPlacement.RELATED)
 							.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 357, GroupLayout.PREFERRED_SIZE))))
 		);
@@ -345,8 +366,8 @@ public class IMAP extends JFrame {
 							.addGap(115)
 							.addComponent(lblWrite, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE))
 						.addGroup(gl_contentPane.createSequentialGroup()
-							.addGap(59)
-							.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 218, GroupLayout.PREFERRED_SIZE)))
+							.addGap(55)
+							.addComponent(scrollPane, GroupLayout.PREFERRED_SIZE, 222, GroupLayout.PREFERRED_SIZE)))
 					.addContainerGap(GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
 		);
 		contentPane.setLayout(gl_contentPane);
