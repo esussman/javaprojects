@@ -14,6 +14,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 import javax.swing.LayoutStyle.ComponentPlacement;
 import javax.swing.JButton;
+import javax.swing.ListModel;
+
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
@@ -65,17 +67,18 @@ public class databaseModifier extends JFrame {
 			
 			ResultSet rs = stat.executeQuery("select * from classes;");
 			dlmClasses.clear();
+			int count = 0;
 			    while (rs.next()) 
 			    {
-			      String classDisplay = rs.getString("department") + rs.getInt("course") + ", " + rs.getString("title");
+			      count++;
+			      String classDisplay = rs.getString("department") + " " + rs.getInt("course") + ", " + rs.getString("title");
 			      dlmClasses.addElement(classDisplay);
 			    }
-			    rs.close();
 			    conn.close();
 			}
 			catch(Exception ex)
 			{
-				
+				System.out.println(ex.getMessage());
 			}
 	}
 	/**
@@ -158,7 +161,7 @@ public class databaseModifier extends JFrame {
 					    
 					    prep.executeBatch();
 					    conn.setAutoCommit(true);
-	
+					    /*
 					    ResultSet rs = stat.executeQuery("select * from classes;");
 					    while (rs.next()) 
 					    {
@@ -171,6 +174,7 @@ public class databaseModifier extends JFrame {
 					      System.out.println();
 					    }
 					    rs.close();
+					    */
 					    conn.close();
 					    getClasses();
 					    
@@ -209,9 +213,47 @@ public class databaseModifier extends JFrame {
 		        JList theList = (JList) mouseEvent.getSource();
 		        if (mouseEvent.getClickCount() == 2) {
 		          int index = theList.locationToIndex(mouseEvent.getPoint());
+		          ListModel dlm = theList.getModel();
+		          String itemText = (String)dlm.getElementAt(index);
+		          String department =   itemText.substring(0, itemText.indexOf(' '));
+		          int number = Integer.parseInt(itemText.substring(itemText.indexOf(' ')+1, itemText.indexOf(',')));
+		         
+		        
 		          if (index >= 0) 
 		          {
-		            JOptionPane.showMessageDialog(null, "working for now");		
+		            int answer = JOptionPane.showConfirmDialog(null, "Are you sure you want to delete this class from the database?");
+		            if(answer == 0)
+		            {
+		            	try{
+		            	Class.forName("org.sqlite.JDBC");
+						Connection conn = DriverManager.getConnection("jdbc:sqlite:a.db");
+						Statement stat = conn.createStatement();
+						//stat.execute("drop table classes");
+						//stat.executeUpdate("create table classes(course number, department text, title text, instructor text, location text, time text)");
+						PreparedStatement prep = conn.prepareStatement("delete from classes where course = ? and department = ?;");
+						prep.setInt(1, number);
+						prep.setString(2, department);
+						prep.addBatch();
+						prep.executeBatch();
+						
+						
+					    conn.setAutoCommit(true);
+					    conn.close();
+					    getClasses();
+						
+						
+		            	}
+		            	catch(Exception ex)
+		            	{
+		            		System.out.println(ex.getMessage());
+		            	}
+						
+						getClasses();
+		            }
+		            else
+		            {
+		            	 System.out.println("NO");
+		            }
 		          }
 		        }
 		      }
@@ -240,6 +282,38 @@ public class databaseModifier extends JFrame {
 		JLabel lblDepartment = new JLabel("Department");
 		lblDepartment.setBounds(21, 128, 88, 16);
 		contentPane.add(lblDepartment);
+		
+		JButton btnClearDatabase = new JButton("Clear Database");
+		btnClearDatabase.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) 
+			{
+				int answer = JOptionPane.showConfirmDialog(null, "Are you sure you want to clear the database?");
+	            if(answer == 0)
+	            {
+				try{
+	            	Class.forName("org.sqlite.JDBC");
+					Connection conn = DriverManager.getConnection("jdbc:sqlite:a.db");
+					Statement stat = conn.createStatement();
+		
+					
+					stat.executeUpdate("drop table if exists classes;");
+					stat.executeUpdate("create table classes(course number, department text, title text, instructor text, location text, time text)");
+					
+				  
+				    getClasses();
+					
+					
+	            	}
+	            	catch(Exception ex)
+	            	{
+	            		System.out.println(ex.getMessage());
+	            	}
+	            }
+	
+			}
+		});
+		btnClearDatabase.setBounds(356, 236, 154, 29);
+		contentPane.add(btnClearDatabase);
 		getClasses();
 	}
 }
